@@ -1,20 +1,22 @@
 {
-  "app_name": "<application_name>",
-  "app_memory": "<default_memory>",
-  "artifact_path": "<artifact_path>",
-  "cf": {
-    "api_endpoint": "<SYSTEM-DOMAIN>",
-    "buildpack": "https://github.com/cloudfoundry/staticfile-buildpack.git",
-    "user": "<CF_USERNAME>",
-    "password": "<CF_PASSWORD>",
-    "org": "<ORG_NAME>",
-    "space": "<SPACE_NAME>",
-    "services": ["<SERVICE_1>", "<SERVICE_2>"],
-    "apps_domain": {
-      "internal": "<internal_domain_for_local_testing>",
-      "external": "<shared/external_domain_for_end_users>"
-    }
-  },
-  "external_app_hostname": "<hostname_for_the_app>",
-  "push_options": "--no-manifest --no-start --health-check-type=process"
+    "app_name": "<application_name>",
+    "app_memory": "<app_memory>",
+    "app_disk": "<app_disk>",
+    "artifact_path": "<artifact_path>",
+    "build_number": "<build_number>",
+    "timeout": "<timeout>",
+    "instances": "<instances>",
+    "services": ["<service_1>", "<service_2>"],
+    "username": "<username>",
+    "password": "<password>",
+    "space": "<space_name>",
+    "buildpack": "<buildpack>",
+    "organization": "<organization_name>",
+    "api_endpoint": "<system_domain>",
+    "external_app_hostname": "<hostname_for_the_app>",
+    "internal_app_domain": "<internal_domain_for_local_testing>",
+    "external_app_domain": "<shared_external_domain_for_end_users>",
+    "push_options": "<pcf_options>"
 }
+
+
