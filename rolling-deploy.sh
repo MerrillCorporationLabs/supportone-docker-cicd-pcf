@@ -44,13 +44,13 @@ shift $(( OPTIND -1 ))
 declare json_file="${1}"
 
 # set cf vars
-read -r CF_API_ENDPOINT CF_BUILDPACK CF_USERNAME CF_PASSWORD CF_ORGANIZATION CF_SPACE CF_INTERNAL_APP_DOMAIN CF_EXTERNAL_APP_DOMAIN <<<$(jq -r '.cf | "\(.api_endpoint) \(.buildpack) \(.username) \(.password) \(.organization) \(.space) \(.internal_app_domain) \(.external_app_domain)"' "${json_file}")
+read -r CF_API_ENDPOINT CF_BUILDPACK CF_USERNAME CF_PASSWORD CF_ORGANIZATION CF_SPACE CF_INTERNAL_APP_DOMAIN CF_EXTERNAL_APP_DOMAIN <<<$(jq -r '. | "\(.api_endpoint) \(.buildpack) \(.username) \(.password) \(.organization) \(.space) \(.internal_app_domain) \(.external_app_domain)"' "${json_file}")
 read -r APP_NAME APP_MEMORY APP_DISK TIMEOUT INSTANCES ARTIFACT_PATH BUILD_NUMBER EXTERNAL_APP_HOSTNAME PUSH_OPTIONS <<<$(jq -r '. | "\(.app_name) \(.app_memory) \(.app_disk) \(.timeout) \(.instances) \(.artifact_path) \(.build_number) \(.external_app_hostname) \(.push_options)"' "${json_file}")
-readarray -t CF_SERVICES <<<"$(jq -r '.cf.services[]' "${json_file}")"
+readarray -t CF_SERVICES <<<"$(jq -r '.services[]' "${json_file}")"
 
 if [[ ${DEBUG} == true ]]; then
 	echo "${CF_API_ENDPOINT}"
-    echo "${CF_BUILDPACK}"
+	echo "${CF_BUILDPACK}"
 	echo "${CF_USERNAME}"
 	echo "${CF_PASSWORD}"
 	echo "${CF_ORGANIZATION}"
