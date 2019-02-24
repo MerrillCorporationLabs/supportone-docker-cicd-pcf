@@ -13,7 +13,9 @@ RUN curl -fL https://getcli.jfrog.io | sh \
     && mv ./jfrog /usr/local/bin/jfrog \
     && chmod 777 /usr/local/bin/jfrog
 
-RUN wget -qO- "https://packages.cloudfoundry.org/stable?release=linux64-binary&source=github" | tar -zx && \
+# Need to use old 6.42.0 version because latest 6.43.0 version has problem in 1.10 prodeu
+# When pushing ui app get following error -- No resource exists with the name processes
+RUN wget -qO- "https://packages.cloudfoundry.org/stable?release=linux64-binary&version=6.42.0&source=github" | tar -zx && \
 	mv cf /usr/local/bin && \
 	cf --version
 
