@@ -77,11 +77,11 @@ NEW_APP="${APP_NAME}-${RANDOM_NUMBER}"
 
 [[ ${DEBUG} == true ]] && echo "Deployed app ${DEPLOYED_APP} has ${INSTANCES} instances"
 
-if [[ $ARTIFACT_TYPE == "directory" && -d ${ARTIFACT_PATH} ]]; then
+if [[ $ARTIFACT_TYPE == "directory" && ! -d ${ARTIFACT_PATH} ]]; then
     echo "Exiting before deploy because directory ${ARTIFACT_PATH} not found"
     exit 1
 fi
-if [[ $ARTIFACT_TYPE == "file" && -f ${ARTIFACT_PATH} ]]; then
+if [[ $ARTIFACT_TYPE == "file" && ! -f ${ARTIFACT_PATH} ]]; then
     echo "Exiting before deploy because file ${ARTIFACT_PATH} not found"
     exit 1
 fi
