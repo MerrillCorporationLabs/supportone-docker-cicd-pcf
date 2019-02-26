@@ -45,25 +45,26 @@ declare json_file="${1}"
 
 # set cf vars
 read -r CF_API_ENDPOINT CF_BUILDPACK CF_USERNAME CF_PASSWORD CF_ORGANIZATION CF_SPACE CF_INTERNAL_APP_DOMAIN CF_EXTERNAL_APP_DOMAIN <<<$(jq -r '. | "\(.api_endpoint) \(.buildpack) \(.username) \(.password) \(.organization) \(.space) \(.internal_app_domain) \(.external_app_domain)"' "${json_file}")
-read -r APP_NAME APP_MEMORY APP_DISK TIMEOUT INSTANCES ARTIFACT_PATH EXTERNAL_APP_HOSTNAME PUSH_OPTIONS <<<$(jq -r '. | "\(.app_name) \(.app_memory) \(.app_disk) \(.timeout) \(.instances) \(.artifact_path) \(.external_app_hostname) \(.push_options)"' "${json_file}")
+read -r APP_NAME APP_MEMORY APP_DISK TIMEOUT INSTANCES ARTIFACT_PATH ARTIFACT_TYPE EXTERNAL_APP_HOSTNAME PUSH_OPTIONS <<<$(jq -r '. | "\(.app_name) \(.app_memory) \(.app_disk) \(.timeout) \(.instances) \(.artifact_path) \(.artifact_type) \(.external_app_hostname) \(.push_options)"' "${json_file}")
 readarray -t CF_SERVICES <<<"$(jq -r '.services[]' "${json_file}")"
 
 if [[ ${DEBUG} == true ]]; then
-	echo "${CF_API_ENDPOINT}"
-	echo "${CF_BUILDPACK}"
-	echo "${CF_ORGANIZATION}"
-	echo "${CF_SPACE}"
-	echo "${CF_INTERNAL_APP_DOMAIN}"
-	echo "${CF_EXTERNAL_APP_DOMAIN}"
-	echo "${APP_NAME}"
-	echo "${APP_MEMORY}"
-	echo "${APP_DISK}"
-	echo "${TIMEOUT}"
-	echo "${INSTANCES}"
-	echo "${ARTIFACT_PATH}"
-	echo "${EXTERNAL_APP_HOSTNAME}"
-	echo "${PUSH_OPTIONS}"
-	echo "${CF_SERVICES[@]}"
+	echo "CF_API_ENDPOINT => ${CF_API_ENDPOINT}"
+	echo "CF_BUILDPACK => ${CF_BUILDPACK}"
+	echo "CF_ORGANIZATION => ${CF_ORGANIZATION}"
+	echo "CF_SPACE => ${CF_SPACE}"
+	echo "CF_INTERNAL_APP_DOMAIN => ${CF_INTERNAL_APP_DOMAIN}"
+	echo "CF_EXTERNAL_APP_DOMAIN => ${CF_EXTERNAL_APP_DOMAIN}"
+	echo "EXTERNAL_APP_HOSTNAME => ${EXTERNAL_APP_HOSTNAME}"
+	echo "APP_NAME => ${APP_NAME}"
+	echo "APP_MEMORY => ${APP_MEMORY}"
+	echo "APP_DISK => ${APP_DISK}"
+	echo "TIMEOUT => ${TIMEOUT}"
+	echo "INSTANCES => ${INSTANCES}"
+	echo "ARTIFACT_PATH => ${ARTIFACT_PATH}"
+	echo "ARTIFACT_TYPE => ${ARTIFACT_TYPE}"
+	echo "PUSH_OPTIONS => ${PUSH_OPTIONS}"
+	echo "CF_SERVICES => ${CF_SERVICES[@]}"
 fi
 
 cf api --skip-ssl-validation "${CF_API_ENDPOINT}"
@@ -74,8 +75,16 @@ RANDOM_NUMBER=$((1 + RANDOM * 100))
 DEPLOYED_APP="${APP_NAME}"
 NEW_APP="${APP_NAME}-${RANDOM_NUMBER}"
 
-[[ ${DEBUG} == true ]] && echo "Deployed app: ${DEPLOYED_APP} Deployed app instances: ${INSTANCES}"
-[[ -d ${ARTIFACT_PATH} ]] || (echo "exiting before deploy. ${ARTIFACT_PATH} does not exist" && exit 1)
+[[ ${DEBUG} == true ]] && echo "Deployed app ${DEPLOYED_APP} has ${INSTANCES} instances"
+
+if [[ $ARTIFACT_TYPE == "directory" && -d ${ARTIFACT_PATH} ]]; then
+    echo "Exiting before deploy because directory ${ARTIFACT_PATH} not found"
+    exit 1
+fi
+if [[ $ARTIFACT_TYPE == "file" && -f ${ARTIFACT_PATH} ]]; then
+    echo "Exiting before deploy because file ${ARTIFACT_PATH} not found"
+    exit 1
+fi
 
 cf push "${NEW_APP}" -i 1 -m "${APP_MEMORY}" -k "${APP_DISK}" -t "${TIMEOUT}" -b "${CF_BUILDPACK}" \
   -n "${NEW_APP}" -d "${CF_INTERNAL_APP_DOMAIN}" -p "${ARTIFACT_PATH}" ${PUSH_OPTIONS}
@@ -114,7 +123,7 @@ if [[ ! -z "${DEPLOYED_APP}" && "${DEPLOYED_APP}" != "" ]]; then
         cf scale -i ${old_app_instances} "${DEPLOYED_APP}"
     done
 
-    echo "Unmapping the external route from the application ${DEPLOYED_APP}"
+    echo "Unmapping external route from the application ${DEPLOYED_APP}"
     if [[ $CF_SPACE =~ .*dev.* ]]; then
         cf unmap-route "${DEPLOYED_APP}" "${CF_EXTERNAL_APP_DOMAIN}" -n "${EXTERNAL_APP_HOSTNAME}";
     elif [[ $CF_SPACE =~ .*stage.* ]]; then
