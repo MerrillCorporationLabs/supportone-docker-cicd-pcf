@@ -48,6 +48,7 @@ read -r CF_API_ENDPOINT CF_BUILDPACK CF_USERNAME CF_PASSWORD CF_ORGANIZATION CF_
 read -r APP_NAME APP_MEMORY APP_DISK TIMEOUT INSTANCES ARTIFACT_PATH ARTIFACT_TYPE EXTERNAL_APP_HOSTNAME PUSH_OPTIONS <<<$(jq -r '. | "\(.app_name) \(.app_memory) \(.app_disk) \(.timeout) \(.instances) \(.artifact_path) \(.artifact_type) \(.external_app_hostname) \(.push_options)"' "${json_file}")
 read -r APP_SUFFIX <<<$(jq -r '. | "\(.app_suffix)"' "${json_file}")
 readarray -t CF_SERVICES <<<"$(jq -r '.services[]' "${json_file}")"
+readarray -t CUSTOM_ROUTES <<<"$(jq -r '.custom_routes[]' "${json_file}")"
 
 if [[ $ARTIFACT_TYPE == "directory" && ! -d ${ARTIFACT_PATH} ]]; then
     echo "Exiting before deploy because artifact path directory ${ARTIFACT_PATH} not found"
@@ -76,6 +77,7 @@ if [[ ${DEBUG} == true ]]; then
 	echo "ARTIFACT_TYPE => ${ARTIFACT_TYPE}"
 	echo "PUSH_OPTIONS => ${PUSH_OPTIONS}"
 	echo "CF_SERVICES => ${CF_SERVICES[@]}"
+	echo "CUSTOM_ROUTES => ${CUSTOM_ROUTES[@]}"
 fi
 
 cf api --skip-ssl-validation "${CF_API_ENDPOINT}"
@@ -102,6 +104,16 @@ for CF_SERVICE in "${CF_SERVICES[@]}"; do
   fi
 done
 
+for CUSTOM_ROUTE in "${CUSTOM_ROUTES[@]}"; do
+  if [ -n "${CUSTOM_ROUTE}" ]; then
+    ROUTE=($CUSTOM_ROUTE)
+    HOST="${ROUTE[0]}"
+    DOMAIN="${ROUTE[1]}"
+    echo "Mapping route ${HOST}.${DOMAIN} to deployed app ${DEPLOYED_APP}"
+    cf map-route "${DEPLOYED_APP}" "${DOMAIN}" -n "${HOST}"
+  fi
+done
+
 cf start "${DEPLOYED_APP}"
 
 exit 0
@@ -120,7 +132,19 @@ done
 cf start "${NEW_APP}"
 
 echo "Performing cutover to new app ${NEW_APP}"
+
+echo "Mapping route ${EXTERNAL_APP_HOSTNAME}${APP_SUFFIX}.${CF_EXTERNAL_APP_DOMAIN} to new app ${NEW_APP}"
 cf map-route "${NEW_APP}" "${CF_EXTERNAL_APP_DOMAIN}" -n "${EXTERNAL_APP_HOSTNAME}${APP_SUFFIX}"
+
+for CUSTOM_ROUTE in "${CUSTOM_ROUTES[@]}"; do
+  if [ -n "${CUSTOM_ROUTE}" ]; then
+    ROUTE=($CUSTOM_ROUTE)
+    HOST="${ROUTE[0]}"
+    DOMAIN="${ROUTE[1]}"
+    echo "Mapping route ${HOST}.${DOMAIN} to new app ${NEW_APP}"
+    cf map-route "${NEW_APP}" "${DOMAIN}" -n "${HOST}"
+  fi
+done
 
 if [[ ! -z "${DEPLOYED_APP}" && "${DEPLOYED_APP}" != "" ]]; then
 
