@@ -44,7 +44,7 @@ shift $(( OPTIND -1 ))
 declare json_file="${1}"
 
 # set cf vars
-read -r CF_API_ENDPOINT CF_BUILDPACK CF_USERNAME CF_PASSWORD CF_ORGANIZATION CF_SPACE CF_INTERNAL_APP_DOMAIN CF_EXTERNAL_APP_DOMAIN <<<$(jq -r '. | "\(.api_endpoint) \(.buildpack) \(.username) \(.password) \(.organization) \(.space) \(.internal_app_domain) \(.external_app_domain)"' "${json_file}")
+read -r CF_API_ENDPOINT CF_BUILDPACK CF_USERNAME CF_PASSWORD CF_ORGANIZATION CF_SPACE CF_APP_DOMAIN <<<$(jq -r '. | "\(.api_endpoint) \(.buildpack) \(.username) \(.password) \(.organization) \(.space) \(.app_domain)"' "${json_file}")
 read -r APP_NAME APP_MEMORY APP_DISK TIMEOUT INSTANCES ARTIFACT_PATH ARTIFACT_TYPE EXTERNAL_APP_HOSTNAME PUSH_OPTIONS <<<$(jq -r '. | "\(.app_name) \(.app_memory) \(.app_disk) \(.timeout) \(.instances) \(.artifact_path) \(.artifact_type) \(.external_app_hostname) \(.push_options)"' "${json_file}")
 read -r APP_SUFFIX <<<$(jq -r '. | "\(.app_suffix)"' "${json_file}")
 readarray -t CF_SERVICES <<<"$(jq -r '.services[]' "${json_file}")"
@@ -64,8 +64,7 @@ if [[ ${DEBUG} == true ]]; then
 	echo "CF_BUILDPACK => ${CF_BUILDPACK}"
 	echo "CF_ORGANIZATION => ${CF_ORGANIZATION}"
 	echo "CF_SPACE => ${CF_SPACE}"
-	echo "CF_INTERNAL_APP_DOMAIN => ${CF_INTERNAL_APP_DOMAIN}"
-	echo "CF_EXTERNAL_APP_DOMAIN => ${CF_EXTERNAL_APP_DOMAIN}"
+	echo "CF_APP_DOMAIN => ${CF_APP_DOMAIN}"
 	echo "EXTERNAL_APP_HOSTNAME => ${EXTERNAL_APP_HOSTNAME}"
 	echo "APP_NAME => ${APP_NAME}"
 	echo "APP_SUFFIX => ${APP_SUFFIX}"
@@ -95,7 +94,7 @@ if [[ -z "$DEPLOYED_INSTANCES" ]]; then
 echo "Deployed app ${DEPLOYED_APP} not found so doing normal deployment instead"
 
 cf push "${DEPLOYED_APP}" -i "${INSTANCES}" -m "${APP_MEMORY}" -k "${APP_DISK}" -t "${TIMEOUT}" -b "${CF_BUILDPACK}" \
-  -n "${EXTERNAL_APP_HOSTNAME}${APP_SUFFIX}" -d "${CF_INTERNAL_APP_DOMAIN}" -p "${ARTIFACT_PATH}" ${PUSH_OPTIONS}
+  -n "${EXTERNAL_APP_HOSTNAME}${APP_SUFFIX}" -d "${CF_APP_DOMAIN}" -p "${ARTIFACT_PATH}" ${PUSH_OPTIONS}
 
 for CF_SERVICE in "${CF_SERVICES[@]}"; do
   if [ -n "${CF_SERVICE}" ]; then
@@ -120,7 +119,7 @@ exit 0
 fi
 
 cf push "${NEW_APP}" -i 1 -m "${APP_MEMORY}" -k "${APP_DISK}" -t "${TIMEOUT}" -b "${CF_BUILDPACK}" \
-  -n "${NEW_APP}" -d "${CF_INTERNAL_APP_DOMAIN}" -p "${ARTIFACT_PATH}" ${PUSH_OPTIONS}
+  -n "${NEW_APP}" -d "${CF_APP_DOMAIN}" -p "${ARTIFACT_PATH}" ${PUSH_OPTIONS}
 
 for CF_SERVICE in "${CF_SERVICES[@]}"; do
   if [ -n "${CF_SERVICE}" ]; then
@@ -133,8 +132,8 @@ cf start "${NEW_APP}"
 
 echo "Performing cutover to new app ${NEW_APP}"
 
-echo "Mapping route ${EXTERNAL_APP_HOSTNAME}${APP_SUFFIX}.${CF_EXTERNAL_APP_DOMAIN} to new app ${NEW_APP}"
-cf map-route "${NEW_APP}" "${CF_EXTERNAL_APP_DOMAIN}" -n "${EXTERNAL_APP_HOSTNAME}${APP_SUFFIX}"
+echo "Mapping route ${EXTERNAL_APP_HOSTNAME}${APP_SUFFIX}.${CF_APP_DOMAIN} to new app ${NEW_APP}"
+cf map-route "${NEW_APP}" "${CF_APP_DOMAIN}" -n "${EXTERNAL_APP_HOSTNAME}${APP_SUFFIX}"
 
 for CUSTOM_ROUTE in "${CUSTOM_ROUTES[@]}"; do
   if [ -n "${CUSTOM_ROUTE}" ]; then
@@ -162,11 +161,14 @@ if [[ ! -z "${DEPLOYED_APP}" && "${DEPLOYED_APP}" != "" ]]; then
     done
 
     echo "Unmapping external route from deployed app ${DEPLOYED_APP}"
-    cf unmap-route "${DEPLOYED_APP}" "${CF_EXTERNAL_APP_DOMAIN}" -n "${EXTERNAL_APP_HOSTNAME}${APP_SUFFIX}"
+    cf unmap-route "${DEPLOYED_APP}" "${CF_APP_DOMAIN}" -n "${EXTERNAL_APP_HOSTNAME}${APP_SUFFIX}"
 
     echo "Deleting deployed app ${DEPLOYED_APP}"
     cf delete "${DEPLOYED_APP}" -f
 fi
+
+echo "Unmapping test deploy route from new app ${NEW_APP}"
+cf unmap-route "${NEW_APP}" "${CF_APP_DOMAIN}" -n "${NEW_APP}"
 
 echo "Renaming new app ${NEW_APP} to ${DEPLOYED_APP}"
 cf rename "${NEW_APP}" "${DEPLOYED_APP}"
